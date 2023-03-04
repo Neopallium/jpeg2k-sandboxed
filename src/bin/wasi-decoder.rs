@@ -1,17 +1,21 @@
 use anyhow::Result;
-use std::io::Read;
 
 use jpeg2k::*;
 
+use jpeg2k_sandboxed::*;
+
+fn decode(req: DecodeImageRequest) -> Result<J2KImage> {
+  let params = req.params();
+
+  let jp2_image = Image::from_bytes_with(&req.data, params)?;
+  Ok(jp2_image.try_into()?)
+}
+
 fn main() -> Result<()> {
-  let mut data = Vec::new();
-  std::io::stdin().read_to_end(&mut data)?;
+  let req: DecodeImageRequest = rmp_serde::from_read(std::io::stdin())?;
 
-  let jp2_image = Image::from_bytes(&data).unwrap();
-  eprintln!("dump image: {:#?}", jp2_image);
-  let image = jp2_image.get_pixels(None).unwrap();
-
+  let res = decode(req).map_err(|e| e.to_string());
   let mut stdout = std::io::stdout();
-  rmp_serde::encode::write(&mut stdout, &image)?;
+  rmp_serde::encode::write(&mut stdout, &res)?;
   Ok(())
 }

@@ -5,7 +5,7 @@ use wasmtime::*;
 use wasmtime_wasi::sync::WasiCtxBuilder;
 use wasmtime_wasi::WasiCtx;
 
-pub use jpeg2k::{ImageData, ImageFormat};
+use crate::*;
 
 pub struct Jpeg2kSandboxed {
   engine: Engine,
@@ -31,8 +31,9 @@ impl Jpeg2kSandboxed {
     })
   }
 
-  pub fn decode(&self, data: &[u8]) -> Result<ImageData> {
-    let stdin = ReadPipe::from(data);
+  pub fn decode(&self, req: &DecodeImageRequest) -> Result<J2KImage> {
+    let req = rmp_serde::to_vec(&req)?;
+    let stdin = ReadPipe::from(req);
     let stdout = WritePipe::new_in_memory();
   
     let wasi = WasiCtxBuilder::new()
@@ -55,7 +56,7 @@ impl Jpeg2kSandboxed {
       .map_err(|_err| anyhow::Error::msg("sole remaining reference"))?
       .into_inner();
   
-    let image: ImageData = rmp_serde::from_slice(&contents)?;
-    Ok(image)
+    let image: Result<J2KImage, String> = rmp_serde::from_slice(&contents)?;
+    Ok(image.map_err(|e| anyhow::anyhow!("{e}"))?)
   }
 }

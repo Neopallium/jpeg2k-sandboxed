@@ -773,24 +773,26 @@ dependencies = [
 
 [[package]]
 name = "jpeg2k"
-version = "0.6.4"
+version = "0.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "57f16c2b2aaced890b9a9f2be36683e9b45d0bf867bbd6951d86cee53e74ee00"
 dependencies = [
  "anyhow",
- "image",
  "log",
  "openjpeg-sys",
- "serde",
  "thiserror",
 ]
 
 [[package]]
 name = "jpeg2k-sandboxed"
-version = "0.1.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
+ "image",
  "jpeg2k",
  "log",
  "rmp-serde",
+ "serde",
  "wasi-common",
  "wasmtime",
  "wasmtime-wasi",
