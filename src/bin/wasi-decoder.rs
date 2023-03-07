@@ -7,8 +7,13 @@ use jpeg2k_sandboxed::*;
 fn decode(req: DecodeImageRequest) -> Result<J2KImage> {
   let params = req.params();
 
-  let jp2_image = Image::from_bytes_with(&req.data, params)?;
-  Ok(jp2_image.try_into()?)
+  let img = if req.only_header {
+    let jp2 = DumpImage::from_bytes_with(&req.data, params)?;
+    jp2.img
+  } else {
+    Image::from_bytes_with(&req.data, params)?
+  };
+  Ok(img.try_into()?)
 }
 
 fn main() -> Result<()> {

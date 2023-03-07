@@ -31,6 +31,11 @@ impl Jpeg2kSandboxed {
     })
   }
 
+  pub fn read_header(&self, req: &DecodeImageRequest) -> Result<J2KImage> {
+    let header = req.only_header();
+    self.decode(&header)
+  }
+
   pub fn decode(&self, req: &DecodeImageRequest) -> Result<J2KImage> {
     let req = rmp_serde::to_vec(&req)?;
     let stdin = ReadPipe::from(req);

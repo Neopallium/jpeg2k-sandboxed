@@ -60,6 +60,7 @@ impl From<DecodeParameters> for jpeg2k::DecodeParameters {
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct DecodeImageRequest {
   pub params: Option<DecodeParameters>,
+  pub only_header: bool,
   /// JP2/J2K compressed image data.
   pub data: Vec<u8>,
 }
@@ -68,6 +69,7 @@ impl DecodeImageRequest {
   pub fn new(data: Vec<u8>) -> Self {
     Self {
       data,
+      only_header: false,
       params: None,
     }
   }
@@ -75,8 +77,15 @@ impl DecodeImageRequest {
   pub fn new_with(data: Vec<u8>, params: DecodeParameters) -> Self {
     Self {
       data,
+      only_header: false,
       params: Some(params),
     }
+  }
+
+  pub fn only_header(&self) -> Self {
+    let mut header_request = self.clone();
+    header_request.only_header = true;
+    header_request
   }
 
   #[cfg(feature = "jpeg2k")]
@@ -125,18 +134,35 @@ impl From<jpeg2k::ImageFormat> for ImageFormat {
   }
 }
 
-/// Try to convert a loaded Jpeg 2000 image into a `image::DynamicImage`.
+/// Try to convert a loaded Jpeg 2000 image into a `J2KImage`.
 #[cfg(feature = "jpeg2k")]
 impl TryFrom<jpeg2k::Image> for J2KImage {
   type Error = jpeg2k::error::Error;
 
   fn try_from(img: jpeg2k::Image) -> Result<Self, Self::Error> {
-    let d = img.get_pixels(None)?;
+    let (format, data) = match img.get_pixels(None) {
+      Ok(d) => (d.format.into(), d.data),
+      Err(_) => {
+        let comps = img.components();
+        let has_alpha = comps.iter().any(|c| c.is_alpha());
+        let num_components = img.num_components();
+        let format = match (num_components, has_alpha) {
+          (1, _) => ImageFormat::L8,
+          (2, true) => ImageFormat::La8,
+          (3, false) => ImageFormat::Rgb8,
+          (4, _) => ImageFormat::Rgba8,
+          _ => {
+            return Err(jpeg2k::error::Error::UnsupportedComponentsError(num_components));
+          }
+        };
+        (format, vec![])
+      }
+    };
     Ok(J2KImage {
-      width: d.width,
-      height: d.height,
-      format: d.format.into(),
-      data: d.data,
+      width: img.width(),
+      height: img.height(),
+      format,
+      data,
       orig_width: img.orig_width(),
       orig_height: img.orig_height(),
       x_offset: img.x_offset(),
