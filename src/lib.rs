@@ -106,6 +106,15 @@ pub enum ImageFormat {
   Rgba8,
 }
 
+/// Component info.
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize)]
+pub struct ComponentInfo {
+  pub width: u32,
+  pub height: u32,
+  pub precision: u32,
+  pub is_alpha: bool,
+}
+
 /// J2KImage
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct J2KImage {
@@ -118,6 +127,7 @@ pub struct J2KImage {
   pub x_offset: u32,
   pub y_offset: u32,
   pub num_components: u32,
+  pub components: Vec<ComponentInfo>,
 }
 
 /// Convert a loaded Jpeg 2000 image into a `image::DynamicImage`.
@@ -140,12 +150,24 @@ impl TryFrom<jpeg2k::Image> for J2KImage {
   type Error = jpeg2k::error::Error;
 
   fn try_from(img: jpeg2k::Image) -> Result<Self, Self::Error> {
+    let comps = img.components();
+    let num_components = img.num_components();
+    let mut has_alpha = false;
+    let components = comps.iter().map(|c| {
+      let is_alpha = c.is_alpha();
+      if is_alpha {
+        has_alpha = true;
+      }
+      ComponentInfo {
+        width: c.width(),
+        height: c.height(),
+        precision: c.precision(),
+        is_alpha: c.is_alpha(),
+      }
+    }).collect::<Vec<_>>();
     let (format, data) = match img.get_pixels(None) {
       Ok(d) => (d.format.into(), d.data),
       Err(_) => {
-        let comps = img.components();
-        let has_alpha = comps.iter().any(|c| c.is_alpha());
-        let num_components = img.num_components();
         let format = match (num_components, has_alpha) {
           (1, _) => ImageFormat::L8,
           (2, true) => ImageFormat::La8,
@@ -167,7 +189,8 @@ impl TryFrom<jpeg2k::Image> for J2KImage {
       orig_height: img.orig_height(),
       x_offset: img.x_offset(),
       y_offset: img.y_offset(),
-      num_components: img.num_components(),
+      num_components,
+      components,
     })
   }
 }
