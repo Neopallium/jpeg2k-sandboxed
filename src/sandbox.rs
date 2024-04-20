@@ -18,6 +18,9 @@ impl Jpeg2kSandboxed {
     let mut linker = Linker::new(&engine);
     wasmtime_wasi::add_to_linker(&mut linker, |s: &mut WasiCtx| s)?;
   
+    #[cfg(feature = "openjp2")]
+    let wasm = include_bytes!("wasi-decoder-openjp2.wasm");
+    #[cfg(not(feature = "openjp2"))]
     let wasm = include_bytes!("wasi-decoder.wasm");
     let module = Module::from_binary(&engine, wasm)?;
 
