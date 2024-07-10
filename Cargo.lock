@@ -740,9 +740,9 @@ checksum = "f5d4a7da358eff58addd2877a45865158f0d78c911d43a5784ceb7bbf52833b0"
 
 [[package]]
 name = "jpeg2k"
-version = "0.7.0"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61b77dca605ffd2a64351ed48beac80cf54b4d7dac61be8815bf73757c108b63"
+checksum = "1d975fddbabc86bb863acff4112156da89cc4d51b697e11333db8d056292701b"
 dependencies = [
  "anyhow",
  "log",
@@ -753,7 +753,7 @@ dependencies = [
 
 [[package]]
 name = "jpeg2k-sandboxed"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "anyhow",
  "image",
