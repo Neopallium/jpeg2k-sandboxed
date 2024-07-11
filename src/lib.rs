@@ -3,7 +3,7 @@ mod sandbox;
 #[cfg(not(feature = "wasi-decoder"))]
 pub use sandbox::*;
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Default, Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct DecodeArea {
@@ -191,19 +191,22 @@ impl TryFrom<jpeg2k::Image> for J2KImage {
     let comps = img.components();
     let num_components = img.num_components();
     let mut has_alpha = false;
-    let components = comps.iter().map(|c| {
-      let is_alpha = c.is_alpha();
-      if is_alpha {
-        has_alpha = true;
-      }
-      ComponentInfo {
-        width: c.width(),
-        height: c.height(),
-        precision: c.precision(),
-        is_alpha: c.is_alpha(),
-        is_signed: c.is_signed(),
-      }
-    }).collect::<Vec<_>>();
+    let components = comps
+      .iter()
+      .map(|c| {
+        let is_alpha = c.is_alpha();
+        if is_alpha {
+          has_alpha = true;
+        }
+        ComponentInfo {
+          width: c.width(),
+          height: c.height(),
+          precision: c.precision(),
+          is_alpha: c.is_alpha(),
+          is_signed: c.is_signed(),
+        }
+      })
+      .collect::<Vec<_>>();
     let (format, data) = match img.get_pixels(None) {
       Ok(d) => (d.format.into(), d.data.into()),
       Err(_) => {
@@ -213,7 +216,9 @@ impl TryFrom<jpeg2k::Image> for J2KImage {
           (3, false) => ImageFormat::Rgb8,
           (4, _) => ImageFormat::Rgba8,
           _ => {
-            return Err(jpeg2k::error::Error::UnsupportedComponentsError(num_components));
+            return Err(jpeg2k::error::Error::UnsupportedComponentsError(
+              num_components,
+            ));
           }
         };
         (format, ImagePixelData::L8(vec![]))

@@ -17,7 +17,7 @@ impl Jpeg2kSandboxed {
     let engine = Engine::default();
     let mut linker = Linker::new(&engine);
     wasmtime_wasi::add_to_linker(&mut linker, |s: &mut WasiCtx| s)?;
-  
+
     #[cfg(feature = "openjp2")]
     let wasm = include_bytes!("wasi-decoder-openjp2.wasm");
     #[cfg(not(feature = "openjp2"))]
@@ -25,8 +25,7 @@ impl Jpeg2kSandboxed {
     let module = Module::from_binary(&engine, wasm)?;
 
     log::debug!("Link Jpeg2k-component.");
-    let instance_pre = linker
-      .instantiate_pre(&module)?;
+    let instance_pre = linker.instantiate_pre(&module)?;
 
     Ok(Self {
       engine,
@@ -43,27 +42,29 @@ impl Jpeg2kSandboxed {
     let req = rmp_serde::to_vec(&req)?;
     let stdin = ReadPipe::from(req);
     let stdout = WritePipe::new_in_memory();
-  
+
     let wasi = WasiCtxBuilder::new()
       .stdin(Box::new(stdin.clone()))
       .stdout(Box::new(stdout.clone()))
       .inherit_env()?
       .build();
-  
+
     let mut store = Store::new(&self.engine, wasi);
-  
+
     log::debug!("Run Jpeg2k-component.");
-    self.instance_pre.instantiate(&mut store)?
+    self
+      .instance_pre
+      .instantiate(&mut store)?
       .get_typed_func::<(), ()>(&mut store, "_start")?
       .call(&mut store, ())?;
 
     drop(store);
-  
+
     let contents: Vec<u8> = stdout
       .try_into_inner()
       .map_err(|_err| anyhow::Error::msg("sole remaining reference"))?
       .into_inner();
-  
+
     let image: Result<J2KImage, String> = rmp_serde::from_slice(&contents)?;
     Ok(image.map_err(|e| anyhow::anyhow!("{e}"))?)
   }

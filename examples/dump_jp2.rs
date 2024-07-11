@@ -1,7 +1,7 @@
+use anyhow::Result;
 use std::env;
 use std::fs::File;
 use std::io::Read;
-use anyhow::Result;
 
 use jpeg2k_sandboxed::*;
 

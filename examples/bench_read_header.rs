@@ -1,7 +1,7 @@
+use anyhow::Result;
 use std::env;
 use std::fs::File;
 use std::io::Read;
-use anyhow::Result;
 
 use rayon::prelude::*;
 
@@ -43,11 +43,14 @@ fn main() -> Result<()> {
   req.only_header = true;
 
   let decoder = Jpeg2kSandboxed::new()?;
-  let imgs = (0..repeat).into_par_iter().map(|_i| {
-    let img = decoder.decode(&req).expect("Image read header");
+  let imgs = (0..repeat)
+    .into_par_iter()
+    .map(|_i| {
+      let img = decoder.decode(&req).expect("Image read header");
 
-    (img.num_components, img.width, img.height)
-  }).collect::<Vec<_>>();
+      (img.num_components, img.width, img.height)
+    })
+    .collect::<Vec<_>>();
 
   let mut total_components = 0;
   let mut is_first = true;

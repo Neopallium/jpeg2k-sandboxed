@@ -1,7 +1,7 @@
+use anyhow::Result;
 use std::env;
 use std::fs::File;
 use std::io::Read;
-use anyhow::Result;
 
 use jpeg2k_sandboxed::*;
 
@@ -40,12 +40,17 @@ fn main() -> Result<()> {
 
   let decoder = Jpeg2kSandboxed::new()?;
   let image = decoder.decode(&req)?;
-  eprintln!("dump image: size={}x{}, orig_size={}x{}, offset={}x{}, components={}, format: {:?}",
-    image.width, image.height,
-    image.orig_width, image.orig_height,
-    image.x_offset, image.y_offset,
+  eprintln!(
+    "dump image: size={}x{}, orig_size={}x{}, offset={}x{}, components={}, format: {:?}",
+    image.width,
+    image.height,
+    image.orig_width,
+    image.orig_height,
+    image.x_offset,
+    image.y_offset,
     image.num_components,
-    image.format);
+    image.format
+  );
   let img: DynamicImage = (image).try_into().expect("should convert");
   img.save(&savename)?;
   Ok(())
