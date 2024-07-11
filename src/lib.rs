@@ -97,40 +97,19 @@ impl DecodeImageRequest {
   }
 }
 
-/// Image Data.
+/// Image pixel format.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum ImageFormat {
   L8,
   La8,
   Rgb8,
   Rgba8,
+  L16,
+  La16,
+  Rgb16,
+  Rgba16,
 }
 
-/// Component info.
-#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize)]
-pub struct ComponentInfo {
-  pub width: u32,
-  pub height: u32,
-  pub precision: u32,
-  pub is_alpha: bool,
-}
-
-/// J2KImage
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct J2KImage {
-  pub width: u32,
-  pub height: u32,
-  pub format: ImageFormat,
-  pub data: Vec<u8>,
-  pub orig_width: u32,
-  pub orig_height: u32,
-  pub x_offset: u32,
-  pub y_offset: u32,
-  pub num_components: u32,
-  pub components: Vec<ComponentInfo>,
-}
-
-/// Convert a loaded Jpeg 2000 image into a `image::DynamicImage`.
 #[cfg(feature = "jpeg2k")]
 impl From<jpeg2k::ImageFormat> for ImageFormat {
   fn from(format: jpeg2k::ImageFormat) -> Self {
@@ -140,8 +119,67 @@ impl From<jpeg2k::ImageFormat> for ImageFormat {
       La8 => Self::La8,
       Rgb8 => Self::Rgb8,
       Rgba8 => Self::Rgba8,
+      L16 => Self::L16,
+      La16 => Self::La16,
+      Rgb16 => Self::Rgb16,
+      Rgba16 => Self::Rgba16,
     }
   }
+}
+
+/// Image pixel data.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ImagePixelData {
+  L8(Vec<u8>),
+  La8(Vec<u8>),
+  Rgb8(Vec<u8>),
+  Rgba8(Vec<u8>),
+  L16(Vec<u16>),
+  La16(Vec<u16>),
+  Rgb16(Vec<u16>),
+  Rgba16(Vec<u16>),
+}
+
+#[cfg(feature = "jpeg2k")]
+impl From<jpeg2k::ImagePixelData> for ImagePixelData {
+  fn from(format: jpeg2k::ImagePixelData) -> Self {
+    use jpeg2k::ImagePixelData::*;
+    match format {
+      L8(d) => Self::L8(d),
+      La8(d) => Self::La8(d),
+      Rgb8(d) => Self::Rgb8(d),
+      Rgba8(d) => Self::Rgba8(d),
+      L16(d) => Self::L16(d),
+      La16(d) => Self::La16(d),
+      Rgb16(d) => Self::Rgb16(d),
+      Rgba16(d) => Self::Rgba16(d),
+    }
+  }
+}
+
+/// Component info.
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize)]
+pub struct ComponentInfo {
+  pub width: u32,
+  pub height: u32,
+  pub precision: u32,
+  pub is_alpha: bool,
+  pub is_signed: bool,
+}
+
+/// J2KImage
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct J2KImage {
+  pub width: u32,
+  pub height: u32,
+  pub format: ImageFormat,
+  pub data: ImagePixelData,
+  pub orig_width: u32,
+  pub orig_height: u32,
+  pub x_offset: u32,
+  pub y_offset: u32,
+  pub num_components: u32,
+  pub components: Vec<ComponentInfo>,
 }
 
 /// Try to convert a loaded Jpeg 2000 image into a `J2KImage`.
@@ -163,10 +201,11 @@ impl TryFrom<jpeg2k::Image> for J2KImage {
         height: c.height(),
         precision: c.precision(),
         is_alpha: c.is_alpha(),
+        is_signed: c.is_signed(),
       }
     }).collect::<Vec<_>>();
     let (format, data) = match img.get_pixels(None) {
-      Ok(d) => (d.format.into(), d.data),
+      Ok(d) => (d.format.into(), d.data.into()),
       Err(_) => {
         let format = match (num_components, has_alpha) {
           (1, _) => ImageFormat::L8,
@@ -177,7 +216,7 @@ impl TryFrom<jpeg2k::Image> for J2KImage {
             return Err(jpeg2k::error::Error::UnsupportedComponentsError(num_components));
           }
         };
-        (format, vec![])
+        (format, ImagePixelData::L8(vec![]))
       }
     };
     Ok(J2KImage {
@@ -205,34 +244,57 @@ impl TryFrom<J2KImage> for ::image::DynamicImage {
     let J2KImage {
       width,
       height,
-      format,
       data,
       ..
     } = img;
-    match format {
-      crate::ImageFormat::L8 => {
+    match data {
+      crate::ImagePixelData::L8(data) => {
         let gray = GrayImage::from_vec(width, height, data)
           .expect("Shouldn't happen.  Report to jpeg2k if you see this.");
 
         Ok(DynamicImage::ImageLuma8(gray))
       }
-      crate::ImageFormat::La8 => {
+      crate::ImagePixelData::La8(data) => {
         let gray = GrayAlphaImage::from_vec(width, height, data)
           .expect("Shouldn't happen.  Report to jpeg2k if you see this.");
 
         Ok(DynamicImage::ImageLumaA8(gray))
       }
-      crate::ImageFormat::Rgb8 => {
+      crate::ImagePixelData::Rgb8(data) => {
         let rgb = RgbImage::from_vec(width, height, data)
           .expect("Shouldn't happen.  Report to jpeg2k if you see this.");
 
         Ok(DynamicImage::ImageRgb8(rgb))
       }
-      crate::ImageFormat::Rgba8 => {
+      crate::ImagePixelData::Rgba8(data) => {
         let rgba = RgbaImage::from_vec(width, height, data)
           .expect("Shouldn't happen.  Report to jpeg2k if you see this.");
 
         Ok(DynamicImage::ImageRgba8(rgba))
+      }
+      crate::ImagePixelData::L16(data) => {
+        let gray = ImageBuffer::from_vec(width, height, data)
+          .expect("Shouldn't happen.  Report to jpeg2k if you see this.");
+
+        Ok(DynamicImage::ImageLuma16(gray))
+      }
+      crate::ImagePixelData::La16(data) => {
+        let gray = ImageBuffer::from_vec(width, height, data)
+          .expect("Shouldn't happen.  Report to jpeg2k if you see this.");
+
+        Ok(DynamicImage::ImageLumaA16(gray))
+      }
+      crate::ImagePixelData::Rgb16(data) => {
+        let rgb = ImageBuffer::from_vec(width, height, data)
+          .expect("Shouldn't happen.  Report to jpeg2k if you see this.");
+
+        Ok(DynamicImage::ImageRgb16(rgb))
+      }
+      crate::ImagePixelData::Rgba16(data) => {
+        let rgba = ImageBuffer::from_vec(width, height, data)
+          .expect("Shouldn't happen.  Report to jpeg2k if you see this.");
+
+        Ok(DynamicImage::ImageRgba16(rgba))
       }
     }
   }
